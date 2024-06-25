@@ -2,18 +2,21 @@ import tkinter as tk
 import copy
 
 GRID_STEP = 10
-VISIBLE_AREA = 1000
-GAME_SPEED = 50
+VISIBLE_AREA = 10
+GAME_SPEED = 1000
 
 class Game:
     def __init__(self) -> None:
+        self.alive_cell = []
         self.create_grid()
         self.add_some_points()
-        self.life_cycle()
+        print(self.alive_cell)
+        self.redraw_alive_cells()
+        print(self.is_it_alive(8,7))
+        print(self.is_it_alive(8,2))
+        print(self.is_it_alive(8,9))
 
     def create_grid(self):
-        self.cell_status = [[False]*VISIBLE_AREA for i in range(VISIBLE_AREA)]
-
         win_width = canvas.winfo_width() # Get current width of canvas
         win_height = canvas.winfo_height() # Get current height of canvas
         canvas.delete('grid_line')
@@ -27,16 +30,19 @@ class Game:
             canvas.create_line([(0, j), (win_width, j)], tag='grid_line', fill='gray')
 
     def add_some_points(self):
-        cell_x = 71
-        cell_y = 40
-        self.cell_status[cell_x][cell_y - 1] = True
-        self.cell_status[cell_x - 1][cell_y - 1] = True
-        self.cell_status[cell_x][cell_y] = True
-        self.cell_status[cell_x - 1][cell_y] = True
-        self.cell_status[cell_x - 2][cell_y] = True
+        self.alive_cell.append([7, 6])
+        self.alive_cell.append([8, 7])
+        self.alive_cell.append([9, 7])
+        self.alive_cell.append([9, 8])
+        self.alive_cell.append([8, 9])
+
+    def is_it_alive(self, x, y):
+        if [x, y] in self.alive_cell:
+            return True
+        else:
+            return False
 
     def life_cycle(self):
-        self.redraw_alive_cells()
         new_cell_status = copy.deepcopy(self.cell_status)
         for i in range(0, VISIBLE_AREA, 1):
             for j in range(0, VISIBLE_AREA, 1):
@@ -58,13 +64,9 @@ class Game:
 
     def redraw_alive_cells(self):
         canvas.delete('alive_cell')
-        for i in range(0, VISIBLE_AREA, 1):
-            for j in range(0, VISIBLE_AREA, 1):
-                if self.cell_status[i][j] == 1:
-                    canvas.create_rectangle(1 + GRID_STEP * i, 1 + GRID_STEP * j, GRID_STEP * (i + 1), GRID_STEP * (j + 1), fill='green', tag='alive_cell', width=0)
-
-    def show_cells_status(self):
-        print(self.cell_status)
+        for coords in self.alive_cell:
+            x, y = coords
+            canvas.create_rectangle(1 + GRID_STEP * x, 1 + GRID_STEP * y, GRID_STEP * (x + 1), GRID_STEP * (y + 1), fill='green', tag='alive_cell', width=0)
 
 # ==========================================================================================
 
