@@ -1,25 +1,63 @@
 import tkinter as tk
-import time
 import copy
+import mouse
 
 GRID_STEP = 10
 VISIBLE_AREA = 1000
-GAME_SPEED = 500
+START_GAME_SPEED = 300
+FRAME_WIDTH = 2
 
-class Game:
+class Game():
     def __init__(self) -> None:
         self.alive_cell = []
         self.active_area = []
+        self.last_start_dump = []
         self.alive_cell_count = 0
+        self.speed = START_GAME_SPEED
         self.life_in_progress = False
 
         self.create_grid()
-        self.add_some_points()
+        self.add_widgets()
 
     def life_toggle(self):
-        pass
+        if self.life_in_progress:
+            self.btn.config(text="Старт", font = ('Sans','10'), bg='green')
+        else:
+            self.btn.config(text="Стоп", font = ('Sans','10','bold'), bg='red')
 
-    def create_grid(self):
+        self.life_in_progress = not self.life_in_progress
+        if self.life_in_progress: 
+            self.last_start_dump = copy.deepcopy(self.alive_cell)
+            self.life_cycle()
+
+    def restore_cell(self, restore=False):
+        if not self.life_in_progress:
+            if restore:
+                self.alive_cell = copy.deepcopy(self.last_start_dump)
+            else:
+                self.alive_cell.clear()
+
+            self.redraw_alive_cells()
+            self.update_label()
+        else:
+            pass
+
+    def speed_up(self):
+        self.speed = self.speed / 2
+        self.update_label()
+
+    def speed_down(self):
+        self.speed = self.speed * 2
+        self.update_label()
+
+    def mouse_click_cell(self, event=None):
+        x_click = canvas.winfo_pointerx() - canvas.winfo_rootx() - FRAME_WIDTH
+        y_click = canvas.winfo_pointery() - canvas.winfo_rooty() - FRAME_WIDTH
+        x_cell = (x_click // GRID_STEP)
+        y_cell = (y_click // GRID_STEP)
+        self.toggle_cell(x_cell, y_cell)
+
+    def create_grid(self, event=None):
         win_width = canvas.winfo_width() # Get current width of canvas
         win_height = canvas.winfo_height() # Get current height of canvas
         canvas.delete('grid_line')
@@ -32,19 +70,42 @@ class Game:
         for j in range(0, win_height, GRID_STEP):
             canvas.create_line([(0, j), (win_width, j)], tag='grid_line', fill='gray')
 
-        # self.btn = tk.Button(root, text="Get Answer", command=self.life_toggle)
-        # self.btn.pack(side=tk.LEFT, padx=15, pady=15)
+    def add_widgets(self):
+        self.btn = tk.Button(root, text="Старт", font = ('Sans','10'), bg='green', width=10, command=self.life_toggle)
+        self.btn.pack(side=tk.LEFT, padx=15, pady=15)
 
-        # self.label = tk.Label(root, text=f'Живых клеток: {self.alive_cell_count}', font=('consolas', 24))
-        # self.label.pack(side=tk.LEFT)
+        self.btn_restore = tk.Button(root, text="Восстан.", width=10, command=lambda: self.restore_cell(True))
+        self.btn_restore.pack(side=tk.LEFT, pady=15)
 
-    def add_some_points(self):
-        self.alive_cell.append([67, 36])
-        self.alive_cell.append([68, 37])
-        self.alive_cell.append([69, 37])
-        self.alive_cell.append([69, 38])
-        self.alive_cell.append([68, 39])
-        # self.alive_cell.append([6, 9])
+        self.btn_erase = tk.Button(root, text="Сброс", width=10, command=self.restore_cell)
+        self.btn_erase.pack(side=tk.LEFT, padx=15, pady=15)
+
+        self.btn_speed_minus = tk.Button(root, text="-", width=3, command=self.speed_down)
+        self.btn_speed_minus.pack(side=tk.LEFT, padx=5, pady=15)
+
+        self.label_speed = tk.Label(root, text=f'Скорость: {round(self.speed / 1000, 2)} c', width=15, font=('consolas', 12))
+        self.label_speed.pack(side=tk.LEFT)
+
+        self.btn_speed_plus = tk.Button(root, text="+", width=3, command=self.speed_up)
+        self.btn_speed_plus.pack(side=tk.LEFT, padx=5, pady=15)
+
+        self.label = tk.Label(root, text=f'Живых клеток: {self.alive_cell_count}', width=20, font=('consolas', 24))
+        self.label.pack(side=tk.RIGHT, padx=15)
+
+    def update_label(self):
+        self.alive_cell_count = len(self.alive_cell)
+        self.label.config(text=f'Живых клеток: {self.alive_cell_count}')
+
+        self.label_speed.config(text=f'Скорость: {round(self.speed / 1000, 2)} c')
+
+    def toggle_cell(self, x, y):
+        if not self.life_in_progress:
+            if self.is_it_alive(x, y):
+                self.alive_cell.remove([x, y])
+            else:
+                self.alive_cell.append([x, y])
+            self.redraw_alive_cells()
+            self.update_label()
 
     def is_it_alive(self, x, y):
         if [x, y] in self.alive_cell:
@@ -85,7 +146,7 @@ class Game:
 
             # print(f'x: {x1}, y: {y1} = {check_neighbors}')
             if [x1, y1] in self.alive_cell:
-                if check_neighbors != 2 and check_neighbors != 3:
+                if check_neighbors < 2 or check_neighbors > 3:
                     active_area_temp.remove([x1, y1])
                     pass
             else:
@@ -96,7 +157,10 @@ class Game:
         
         self.alive_cell = copy.deepcopy(active_area_temp)
         self.redraw_alive_cells()
-        root.after(int(GAME_SPEED), self.life_cycle)
+        self.update_label()
+
+        if self.life_in_progress:
+            root.after(int(self.speed), self.life_cycle)
 
     def redraw_alive_cells(self):
         canvas.delete('alive_cell')
@@ -109,13 +173,16 @@ class Game:
 def main():
     global root
     root = tk.Tk()
+    root.title("Игра жизнь (клеточный автомат)")
 
     global canvas
-    canvas = tk.Canvas(root, height=700, width=1400, bg='black')
+    canvas = tk.Canvas(root, height=400, width=800, bg='black')
     canvas.pack(fill = tk.BOTH, expand = True)
     canvas.update()
 
     game = Game()
+    root.bind("<Configure>", game.create_grid)
+    canvas.bind("<Button-1>", game.mouse_click_cell)
 
     root.mainloop()
 
