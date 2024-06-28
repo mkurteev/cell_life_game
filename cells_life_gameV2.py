@@ -1,6 +1,8 @@
 import tkinter as tk
 import copy
 import mouse
+from tkinter import messagebox
+from tkinter import filedialog
 
 GRID_STEP = 10
 VISIBLE_AREA = 1000
@@ -30,25 +32,55 @@ class Game():
             self.last_start_dump = copy.deepcopy(self.alive_cell)
             self.life_cycle()
 
-    def restore_cell(self, restore=False):
+    def restore_cells(self, dump=None):
         if not self.life_in_progress:
-            if restore:
-                self.alive_cell = copy.deepcopy(self.last_start_dump)
+            if dump:
+                self.alive_cell = copy.deepcopy(dump)
             else:
                 self.alive_cell.clear()
 
             self.redraw_alive_cells()
             self.update_label()
         else:
-            pass
+            self.in_progress_info()
 
     def speed_up(self):
-        self.speed = self.speed / 2
-        self.update_label()
+        if self.speed < 9500:
+            self.speed = self.speed * 2
+            self.update_label()
 
     def speed_down(self):
-        self.speed = self.speed * 2
-        self.update_label()
+        if self.speed > 10:
+            self.speed = self.speed / 2
+            self.update_label()
+
+    def in_progress_info(self):
+        messagebox.showinfo("Невозможно", "Сначала нажмите 'Стоп'")
+
+    def save_to_file(self):
+        if not self.life_in_progress:
+            file_path = filedialog.asksaveasfilename(title="Выберите файл для сохранения...", \
+                                                    filetypes = [('Text Document', '*.txt')], defaultextension = [('Text Document', '*.txt')])
+            if file_path:
+                with open(file_path, mode='w+') as file:
+                    for coords in self.alive_cell:
+                        file.write('%s\n' %",".join(map(str, coords)))
+                file.close()
+        else:
+            self.in_progress_info()
+
+    def load_from_file(self):
+        if not self.life_in_progress:
+            file_path = filedialog.askopenfilename(title="Выберите файл для загрузки...", filetypes=[("Text files", "*.txt")])
+            if file_path:
+                dump_from_file = []
+                file = open(file_path, 'r')
+                for f_string in file.readlines():
+                    dump_from_file.append(list(map(int, f_string.replace('\n', '').split(','))))
+                file.close()
+                self.restore_cells(dump_from_file)
+        else:
+            self.in_progress_info()
 
     def mouse_click_cell(self, event=None):
         x_click = canvas.winfo_pointerx() - canvas.winfo_rootx() - FRAME_WIDTH
@@ -71,22 +103,28 @@ class Game():
             canvas.create_line([(0, j), (win_width, j)], tag='grid_line', fill='gray')
 
     def add_widgets(self):
-        self.btn = tk.Button(root, text="Старт", font = ('Sans','10'), bg='green', width=10, command=self.life_toggle)
-        self.btn.pack(side=tk.LEFT, padx=15, pady=15)
+        self.btn = tk.Button(root, text="Старт", font = ('Sans','10'), bg='green', width=8, command=self.life_toggle)
+        self.btn.pack(side=tk.LEFT, padx=10, pady=15)
 
-        self.btn_restore = tk.Button(root, text="Восстан.", width=10, command=lambda: self.restore_cell(True))
-        self.btn_restore.pack(side=tk.LEFT, pady=15)
+        self.btn_erase = tk.Button(root, text="Сброс", width=8, command=self.restore_cells)
+        self.btn_erase.pack(side=tk.LEFT, pady=15)
 
-        self.btn_erase = tk.Button(root, text="Сброс", width=10, command=self.restore_cell)
-        self.btn_erase.pack(side=tk.LEFT, padx=15, pady=15)
+        self.btn_restore = tk.Button(root, text="Восстан.", width=8, command=lambda: self.restore_cells(self.last_start_dump))
+        self.btn_restore.pack(side=tk.LEFT, padx=10, pady=15)
 
-        self.btn_speed_minus = tk.Button(root, text="-", width=3, command=self.speed_down)
+        self.btn_save = tk.Button(root, text="Сохран.", width=8, command=self.save_to_file)
+        self.btn_save.pack(side=tk.LEFT, pady=15)
+
+        self.btn_open = tk.Button(root, text="Загруз.", width=8, command=self.load_from_file)
+        self.btn_open.pack(side=tk.LEFT, padx=10, pady=15)
+
+        self.btn_speed_minus = tk.Button(root, text="-", width=2, command=self.speed_down)
         self.btn_speed_minus.pack(side=tk.LEFT, padx=5, pady=15)
 
-        self.label_speed = tk.Label(root, text=f'Скорость: {round(self.speed / 1000, 2)} c', width=15, font=('consolas', 12))
+        self.label_speed = tk.Label(root, text=f'Шаг: {round(self.speed / 1000, 2)} c', width=10, font=('consolas', 12))
         self.label_speed.pack(side=tk.LEFT)
 
-        self.btn_speed_plus = tk.Button(root, text="+", width=3, command=self.speed_up)
+        self.btn_speed_plus = tk.Button(root, text="+", width=2, command=self.speed_up)
         self.btn_speed_plus.pack(side=tk.LEFT, padx=5, pady=15)
 
         self.label = tk.Label(root, text=f'Живых клеток: {self.alive_cell_count}', width=20, font=('consolas', 24))
@@ -96,7 +134,7 @@ class Game():
         self.alive_cell_count = len(self.alive_cell)
         self.label.config(text=f'Живых клеток: {self.alive_cell_count}')
 
-        self.label_speed.config(text=f'Скорость: {round(self.speed / 1000, 2)} c')
+        self.label_speed.config(text=f'Шаг: {round(self.speed / 1000, 2)} c')
 
     def toggle_cell(self, x, y):
         if not self.life_in_progress:
@@ -106,6 +144,8 @@ class Game():
                 self.alive_cell.append([x, y])
             self.redraw_alive_cells()
             self.update_label()
+        else:
+            messagebox.showinfo("Невозможно", "Сначала нажмите 'Стоп'") 
 
     def is_it_alive(self, x, y):
         if [x, y] in self.alive_cell:
@@ -176,13 +216,19 @@ def main():
     root.title("Игра жизнь (клеточный автомат)")
 
     global canvas
-    canvas = tk.Canvas(root, height=400, width=800, bg='black')
+    canvas = tk.Canvas(root, height=400, width=600, bg='black')
     canvas.pack(fill = tk.BOTH, expand = True)
     canvas.update()
 
     game = Game()
     root.bind("<Configure>", game.create_grid)
     canvas.bind("<Button-1>", game.mouse_click_cell)
+    messagebox.showinfo("О игре", "Игровое поле - чашка Петри, в ней развиваются клетки.\n\
+Черные клетки - мертвые, зеленые - живые.\n\n\
+Перед тем как запустить жизнь, игрок выбирает начальное состояние - какие клетки живые в начале.\n\n\
+Каждый шаг иргы развивается новое поколение по выбранным правилам.\n\n\
+Например стандартные правила B3\S23 - клетка рождается в следующем покалении, если в предыдущем у нее было 3 соседних живых клетки, и продолжает жить, если у нее 2 или 3 соседа.\n\n\
+")
 
     root.mainloop()
 
